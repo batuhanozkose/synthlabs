@@ -21,12 +21,13 @@ import * as FirebaseService from './services/firebaseService';
 import * as ExternalApiService from './services/externalApiService';
 import * as DeepReasoningService from './services/deepReasoningService';
 import { LogStorageService } from './services/logStorageService';
-import { fetchHuggingFaceRows, searchDatasets, getDatasetStructure } from './services/huggingFaceService';
+import { fetchHuggingFaceRows, searchDatasets, getDatasetStructure, getDatasetInfo } from './services/huggingFaceService';
 import LogFeed from './components/LogFeed';
 import ReasoningHighlighter from './components/ReasoningHighlighter';
 import MiniDbPanel from './components/MiniDbPanel';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import VerifierPanel from './components/VerifierPanel';
+import DataPreviewTable from './components/DataPreviewTable';
 
 export default function App() {
     // --- State: Modes ---
@@ -160,6 +161,9 @@ export default function App() {
     // --- State: Hugging Face Prefetch ---
     const [availableColumns, setAvailableColumns] = useState<string[]>([]);
     const [isPrefetching, setIsPrefetching] = useState(false);
+    const [hfPreviewData, setHfPreviewData] = useState<any[]>([]);
+    const [hfTotalRows, setHfTotalRows] = useState<number>(0);
+    const [isLoadingHfPreview, setIsLoadingHfPreview] = useState(false);
 
     // --- State: Runtime ---
     const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
@@ -367,6 +371,9 @@ export default function App() {
     const handleSelectHFDataset = async (datasetId: string) => {
         setHfConfig(prev => ({ ...prev, dataset: datasetId, config: '', split: '' }));
         setShowHFResults(false);
+        setHfPreviewData([]);
+        setHfTotalRows(0);
+
         const structure = await getDatasetStructure(datasetId);
         setHfStructure(structure);
         if (structure.configs.length > 0) {
@@ -375,6 +382,22 @@ export default function App() {
             const defaultSplit = splits.includes('train') ? 'train' : (splits[0] || '');
             const newConfig = { ...hfConfig, dataset: datasetId, config: defaultConfig, split: defaultSplit };
             setHfConfig(newConfig);
+
+            // Fetch preview data and row count
+            setIsLoadingHfPreview(true);
+            try {
+                const [previewRows, datasetInfo] = await Promise.all([
+                    fetchHuggingFaceRows(newConfig, 0, 5),
+                    getDatasetInfo(datasetId, defaultConfig, defaultSplit)
+                ]);
+                setHfPreviewData(previewRows);
+                setHfTotalRows(datasetInfo.totalRows);
+            } catch (e) {
+                console.error('Failed to fetch HF preview:', e);
+            } finally {
+                setIsLoadingHfPreview(false);
+            }
+
             prefetchColumns(newConfig);
         }
     };
@@ -1789,13 +1812,73 @@ export default function App() {
                                         <div className="space-y-1 flex-[1.5]"><label className="text-[10px] text-slate-500 font-bold uppercase flex items-center justify-between"><span className="flex items-center gap-1"><Table className="w-3 h-3" /> Column Name</span><button onClick={() => prefetchColumns()} disabled={isPrefetching} className="text-[9px] text-amber-500 hover:text-amber-400 flex items-center gap-1 transition-colors disabled:opacity-50">{isPrefetching ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />} Scan</button></label>{availableColumns.length > 0 ? (<select value={hfConfig.columnName || ''} onChange={e => setHfConfig({ ...hfConfig, columnName: e.target.value })} className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:border-amber-500 outline-none appearance-none"><option value="">Auto-detect (e.g. 'prompt')</option>{availableColumns.map(col => <option key={col} value={col}>{col}</option>)}</select>) : (<input type="text" value={hfConfig.columnName || ''} onChange={e => setHfConfig({ ...hfConfig, columnName: e.target.value })} className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:border-amber-500 outline-none" placeholder="Auto-detect (e.g. 'prompt')" />)}</div>
                                         <div className="space-y-1 flex-1"><label className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1"><MessageSquare className="w-3 h-3" /> Turn Index</label><input type="number" min="0" value={hfConfig.messageTurnIndex || 0} onChange={e => setHfConfig({ ...hfConfig, messageTurnIndex: Math.max(0, parseInt(e.target.value) || 0) })} className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:border-amber-500 outline-none" placeholder="0" /></div>
                                     </div>
+
+                                    {/* Dataset Info & Preview */}
+                                    {hfConfig.dataset && (
+                                        <div className="space-y-2 mt-3">
+                                            {/* Row count badge */}
+                                            {hfTotalRows > 0 && (
+                                                <div className="flex items-center gap-2 text-[10px]">
+                                                    <span className="text-slate-500">Total rows in dataset:</span>
+                                                    <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-mono">
+                                                        {hfTotalRows.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {/* Preview Table */}
+                                            {isLoadingHfPreview ? (
+                                                <div className="flex items-center justify-center py-4 text-slate-500 text-xs">
+                                                    <RefreshCcw className="w-4 h-4 animate-spin mr-2" /> Loading preview...
+                                                </div>
+                                            ) : hfPreviewData.length > 0 && (
+                                                <DataPreviewTable
+                                                    rawText={JSON.stringify(hfPreviewData)}
+                                                    onClose={() => setHfPreviewData([])}
+                                                />
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                             {dataSourceMode === 'manual' && (
                                 <div className="space-y-3 animate-in fade-in">
-                                    <div className="flex gap-2"><button onClick={() => sourceFileInputRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs py-2 rounded transition-colors"><Upload className="w-3.5 h-3.5" /> Upload File</button><input type="file" ref={sourceFileInputRef} onChange={handleLoadSourceFile} className="hidden" accept=".json,.jsonl,.txt" /></div>
-                                    <textarea value={converterInputText} onChange={e => { setConverterInputText(e.target.value); setRowsToFetch(e.target.value.split('\n').filter(l => l.trim()).length); }} className="w-full h-32 bg-slate-950 border border-slate-700 rounded px-3 py-2 text-[10px] font-mono text-slate-400 focus:border-indigo-500 outline-none resize-none" placeholder="Paste text or JSON lines here..." />
-                                    <div className="text-[10px] text-slate-600 text-right">{converterInputText.split('\n').filter(l => l.trim()).length} lines detected</div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => sourceFileInputRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs py-2 rounded transition-colors">
+                                            <Upload className="w-3.5 h-3.5" /> Upload File
+                                        </button>
+                                        <input type="file" ref={sourceFileInputRef} onChange={handleLoadSourceFile} className="hidden" accept=".json,.jsonl,.txt" />
+                                    </div>
+
+                                    {/* Data Preview Table or Raw Input */}
+                                    {converterInputText.trim() ? (
+                                        <DataPreviewTable
+                                            rawText={converterInputText}
+                                            onClose={() => setConverterInputText('')}
+                                        />
+                                    ) : (
+                                        <textarea
+                                            value={converterInputText}
+                                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+                                                setConverterInputText(e.target.value);
+                                                setRowsToFetch(e.target.value.split('\n').filter((l: string) => l.trim()).length);
+                                            }}
+                                            className="w-full h-32 bg-slate-950 border border-slate-700 rounded px-3 py-2 text-[10px] font-mono text-slate-400 focus:border-indigo-500 outline-none resize-none"
+                                            placeholder="Paste text or JSON lines here..."
+                                        />
+                                    )}
+
+                                    <div className="flex items-center justify-between text-[10px] text-slate-600">
+                                        <span>{converterInputText.split('\n').filter((l: string) => l.trim()).length} lines detected</span>
+                                        {converterInputText.trim() && (
+                                            <button
+                                                onClick={() => setConverterInputText('')}
+                                                className="text-slate-500 hover:text-red-400 transition-colors"
+                                            >
+                                                Clear
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>

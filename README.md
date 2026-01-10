@@ -9,7 +9,7 @@
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Set your keys in .env & .env.local to your API keys (see the .env.example file for more info)
 3. Run the app:
    `npm run dev`
 

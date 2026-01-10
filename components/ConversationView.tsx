@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Bot, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { User, Bot, ChevronDown, ChevronUp, Sparkles, Settings } from 'lucide-react';
 import { ChatMessage } from '../types';
 import ReasoningHighlighter from './ReasoningHighlighter';
 
@@ -16,6 +16,40 @@ const parseThinkTags = (content: string): { reasoning: string | null; answer: st
         return { reasoning, answer };
     }
     return { reasoning: null, answer: content };
+};
+
+// Role styling configuration
+const getRoleStyles = (role: string) => {
+    switch (role) {
+        case 'user':
+            return {
+                avatar: 'bg-indigo-500/20 text-indigo-400',
+                bubble: 'bg-indigo-600/30 text-indigo-100 border border-indigo-500/30',
+                icon: User,
+                label: 'User',
+                align: 'flex-row-reverse',
+                textAlign: 'text-right'
+            };
+        case 'system':
+            return {
+                avatar: 'bg-violet-500/20 text-violet-400',
+                bubble: 'bg-violet-900/30 text-violet-100 border border-violet-500/30',
+                icon: Settings,
+                label: 'System',
+                align: '',
+                textAlign: ''
+            };
+        case 'assistant':
+        default:
+            return {
+                avatar: 'bg-emerald-500/20 text-emerald-400',
+                bubble: 'bg-slate-800 text-slate-200 border border-slate-700',
+                icon: Bot,
+                label: 'Assistant',
+                align: '',
+                textAlign: ''
+            };
+    }
 };
 
 const ConversationView: React.FC<ConversationViewProps> = ({ messages }) => {
@@ -50,35 +84,27 @@ const ConversationView: React.FC<ConversationViewProps> = ({ messages }) => {
                 const displayReasoning = msg.reasoning || embeddedReasoning;
                 const displayContent = cleanContent;
 
+                const styles = getRoleStyles(msg.role);
+                const IconComponent = styles.icon;
+
                 return (
                     <div
                         key={idx}
-                        className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+                        className={`flex gap-3 ${styles.align}`}
                     >
                         {/* Avatar */}
                         <div
-                            className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.role === 'user'
-                                ? 'bg-indigo-500/20 text-indigo-400'
-                                : 'bg-emerald-500/20 text-emerald-400'
-                                }`}
+                            className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${styles.avatar}`}
                         >
-                            {msg.role === 'user' ? (
-                                <User className="w-4 h-4" />
-                            ) : (
-                                <Bot className="w-4 h-4" />
-                            )}
+                            <IconComponent className="w-4 h-4" />
                         </div>
 
                         {/* Message Bubble */}
                         <div
-                            className={`flex-1 max-w-[85%] ${msg.role === 'user' ? 'text-right' : ''
-                                }`}
+                            className={`flex-1 max-w-[85%] ${styles.textAlign}`}
                         >
                             <div
-                                className={`inline-block rounded-xl px-4 py-3 text-sm leading-relaxed ${msg.role === 'user'
-                                    ? 'bg-indigo-600/30 text-indigo-100 border border-indigo-500/30'
-                                    : 'bg-slate-800 text-slate-200 border border-slate-700'
-                                    }`}
+                                className={`inline-block rounded-xl px-4 py-3 text-sm leading-relaxed ${styles.bubble}`}
                             >
                                 {/* Reasoning Toggle for Assistant Messages */}
                                 {msg.role === 'assistant' && displayReasoning && (
@@ -109,10 +135,9 @@ const ConversationView: React.FC<ConversationViewProps> = ({ messages }) => {
 
                             {/* Role Label */}
                             <div
-                                className={`text-[9px] text-slate-600 uppercase font-bold mt-1 ${msg.role === 'user' ? 'text-right mr-1' : 'ml-1'
-                                    }`}
+                                className={`text-[9px] text-slate-600 uppercase font-bold mt-1 ${msg.role === 'user' ? 'text-right mr-1' : 'ml-1'}`}
                             >
-                                {msg.role === 'user' ? 'User' : 'Assistant'}
+                                {styles.label}
                             </div>
                         </div>
                     </div>

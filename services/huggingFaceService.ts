@@ -48,6 +48,35 @@ export const getDatasetStructure = async (dataset: string): Promise<{ configs: s
     }
 };
 
+export interface DatasetInfo {
+    totalRows: number;
+    features: string[];
+}
+
+export const getDatasetInfo = async (
+    dataset: string,
+    config: string,
+    split: string
+): Promise<DatasetInfo> => {
+    try {
+        const url = `https://datasets-server.huggingface.co/info?dataset=${dataset}&config=${config}`;
+        const res = await fetch(url);
+        if (!res.ok) return { totalRows: 0, features: [] };
+        const data = await res.json();
+
+        const splitInfo = data.dataset_info?.splits?.[split];
+        const features = Object.keys(data.dataset_info?.features || {});
+
+        return {
+            totalRows: splitInfo?.num_examples || 0,
+            features
+        };
+    } catch (e) {
+        console.error("HF Info failed", e);
+        return { totalRows: 0, features: [] };
+    }
+};
+
 export const fetchHuggingFaceRows = async (
     hfConfig: HuggingFaceConfig,
     offset: number,
