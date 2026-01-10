@@ -1,0 +1,5 @@
+{
+  "name": "SynthLabs Reasoning Generator",
+  "description": "A high-fidelity synthetic data generator using stenographic reasoning traces and the Google Gemini 2.5 Flash model.",
+  "requestFramePermissions": []
+}
