@@ -2,7 +2,7 @@
 import { SettingsService } from './settingsService';
 
 // Use import.meta.glob to load all prompt text files
-const promptFiles = import.meta.glob('/prompts/**/*.txt', { as: 'raw', eager: true });
+const promptFiles = import.meta.glob('/prompts/**/*.txt', { query: '?raw', import: 'default', eager: true });
 
 type PromptCategory = 'generator' | 'converter' | 'verifier';
 
@@ -20,19 +20,19 @@ export const PromptService = {
 
         // Try exact match
         if (promptFiles[specificPath]) {
-            return promptFiles[specificPath] as unknown as string;
+            return promptFiles[specificPath] as string;
         }
 
         // Fallback to default if we are not already asking for default
         if (setId !== 'default' && promptFiles[defaultPath]) {
             // Optional: Log fallback warning? 
             // console.warn(`Prompt not found: ${specificPath}, falling back to default.`);
-            return promptFiles[defaultPath] as unknown as string;
+            return promptFiles[defaultPath] as string;
         }
 
         // Last resort: verify if default exists, otherwise error or empty string
         if (promptFiles[defaultPath]) {
-            return promptFiles[defaultPath] as unknown as string;
+            return promptFiles[defaultPath] as string;
         }
 
         console.error(`Prompt completely missing: ${category}/${role} (Set: ${setId})`);
