@@ -8,6 +8,7 @@ interface ColumnSelectorProps {
     onSelect: (cols: string[]) => void;
     autoDetected?: string[];
     placeholder?: string;
+    previewData?: Record<string, string>; // { columnName: sampleValue }
 }
 
 export default function ColumnSelector({
@@ -16,16 +17,24 @@ export default function ColumnSelector({
     selected,
     onSelect,
     autoDetected = [],
-    placeholder = 'Select columns...'
+    placeholder = 'Select columns...',
+    previewData
 }: ColumnSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Filter columns by search term
+    const filteredColumns = columns.filter(col =>
+        col.toLowerCase().includes(search.toLowerCase())
+    );
 
     // Close on outside click
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
+                setSearch(''); // Clear search when closing
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -105,7 +114,22 @@ export default function ColumnSelector({
 
                 {/* Dropdown menu */}
                 {isOpen && (
-                    <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                    <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-xl max-h-64 overflow-hidden flex flex-col">
+                        {/* Search input */}
+                        {columns.length > 5 && (
+                            <div className="px-2 py-1.5 border-b border-slate-800 bg-slate-900">
+                                <input
+                                    type="text"
+                                    placeholder="Search columns..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-full px-2 py-1 text-[10px] bg-slate-950 border border-slate-700 rounded focus:border-amber-500/50 focus:outline-none text-slate-200 placeholder-slate-500"
+                                    autoFocus
+                                />
+                            </div>
+                        )}
+
                         {/* Quick actions */}
                         <div className="flex items-center gap-2 px-2 py-1.5 border-b border-slate-800 bg-slate-900/50">
                             {autoDetected.length > 0 && (
@@ -125,38 +149,47 @@ export default function ColumnSelector({
                                     Clear all
                                 </button>
                             )}
+                            {search && (
+                                <span className="text-[9px] text-slate-600 ml-auto">
+                                    {filteredColumns.length} of {columns.length}
+                                </span>
+                            )}
                         </div>
 
                         {/* Column list */}
-                        {columns.length === 0 ? (
-                            <div className="px-3 py-2 text-xs text-slate-500 text-center">
-                                No columns available
-                            </div>
-                        ) : (
-                            columns.map(col => {
-                                const isSelected = selected.includes(col);
-                                const isAutoDetected = autoDetected.includes(col);
-                                return (
-                                    <button
-                                        key={col}
-                                        onClick={() => toggleColumn(col)}
-                                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-800 transition-colors ${isSelected ? 'text-white' : 'text-slate-400'
-                                            }`}
-                                    >
-                                        <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${isSelected
-                                                ? 'bg-amber-500 border-amber-500'
-                                                : 'border-slate-600'
-                                            }`}>
-                                            {isSelected && <Check className="w-2.5 h-2.5 text-slate-900" />}
-                                        </div>
-                                        <span className="font-mono truncate">{col}</span>
-                                        {isAutoDetected && (
-                                            <Sparkles className="w-3 h-3 text-amber-400/50 ml-auto" />
-                                        )}
-                                    </button>
-                                );
-                            })
-                        )}
+                        <div className="overflow-y-auto flex-1">
+                            {filteredColumns.length === 0 ? (
+                                <div className="px-3 py-2 text-xs text-slate-500 text-center">
+                                    {columns.length === 0 ? 'No columns available' : 'No matches found'}
+                                </div>
+                            ) : (
+                                filteredColumns.map(col => {
+                                    const isSelected = selected.includes(col);
+                                    const isAutoDetected = autoDetected.includes(col);
+                                    const preview = previewData?.[col];
+                                    return (
+                                        <button
+                                            key={col}
+                                            onClick={() => toggleColumn(col)}
+                                            title={preview ? `Sample: ${preview.slice(0, 150)}${preview.length > 150 ? '...' : ''}` : undefined}
+                                            className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-800 transition-colors ${isSelected ? 'text-white' : 'text-slate-400'
+                                                }`}
+                                        >
+                                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${isSelected
+                                                    ? 'bg-amber-500 border-amber-500'
+                                                    : 'border-slate-600'
+                                                }`}>
+                                                {isSelected && <Check className="w-2.5 h-2.5 text-slate-900" />}
+                                            </div>
+                                            <span className="font-mono truncate">{col}</span>
+                                            {isAutoDetected && (
+                                                <Sparkles className="w-3 h-3 text-amber-400/50 ml-auto flex-shrink-0" />
+                                            )}
+                                        </button>
+                                    );
+                                })
+                            )}
+                        </div>
                     </div>
                 )}
             </div>

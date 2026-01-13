@@ -294,6 +294,7 @@ interface MultiTurnOrchestrationParams {
   maxRetries: number;
   retryDelay: number;
   generationParams?: GenerationParams;
+  promptSet?: string; // Optional prompt set for fallback prompt loading (auto-routing)
 }
 
 /**
@@ -307,7 +308,7 @@ interface MultiTurnOrchestrationParams {
 export const orchestrateMultiTurnConversation = async (
   params: MultiTurnOrchestrationParams
 ): Promise<SynthLogItem> => {
-  const { initialInput, initialQuery, initialResponse: preGeneratedResponse, initialReasoning: preGeneratedReasoning, userAgentConfig, responderConfig, signal, maxRetries, retryDelay, generationParams } = params;
+  const { initialInput, initialQuery, initialResponse: preGeneratedResponse, initialReasoning: preGeneratedReasoning, userAgentConfig, responderConfig, signal, maxRetries, retryDelay, generationParams, promptSet } = params;
   const startTime = Date.now();
 
   // Heuristic: Use initialInput (user's selected column content) if the inferred query looks like a database ID/slug or is missing.
@@ -359,7 +360,7 @@ export const orchestrateMultiTurnConversation = async (
       const generatedResponse = await callAgent(
         responderConfig,
         initialInput,
-        PromptService.getPrompt('generator', 'responder'),
+        responderConfig.systemPrompt || PromptService.getPrompt('generator', 'responder', promptSet),
         signal,
         maxRetries,
         retryDelay,
@@ -395,10 +396,10 @@ export const orchestrateMultiTurnConversation = async (
           apiKey: userAgentConfig.apiKey,
           model: userAgentConfig.model,
           customBaseUrl: userAgentConfig.customBaseUrl,
-          systemPrompt: userAgentConfig.systemPrompt || PromptService.getPrompt('generator', 'user_agent')
+          systemPrompt: userAgentConfig.systemPrompt || PromptService.getPrompt('generator', 'user_agent', promptSet)
         },
         userAgentInput,
-        userAgentConfig.systemPrompt || PromptService.getPrompt('generator', 'user_agent'),
+        userAgentConfig.systemPrompt || PromptService.getPrompt('generator', 'user_agent', promptSet),
         signal,
         maxRetries,
         retryDelay,
@@ -418,7 +419,7 @@ export const orchestrateMultiTurnConversation = async (
       const responseResult = await callAgent(
         responderConfig,
         responseInput,
-        responderConfig.systemPrompt || PromptService.getPrompt('generator', 'responder'),
+        responderConfig.systemPrompt || PromptService.getPrompt('generator', 'responder', promptSet),
         signal,
         maxRetries,
         retryDelay,
@@ -534,6 +535,7 @@ interface ConversationRewriteParams {
     model: string;
     customBaseUrl: string;
   };
+  promptSet?: string;                 // Optional prompt set for fallback prompt loading (auto-routing)
 }
 
 /**
@@ -561,7 +563,8 @@ export const orchestrateConversationRewrite = async (
     generationParams,
     onMessageRewritten,
     maxTraces,
-    regularModeConfig
+    regularModeConfig,
+    promptSet
   } = params;
 
   const startTime = Date.now();
@@ -649,7 +652,7 @@ ${outsideThinkContent}
         newReasoning = deepResult.reasoning || originalThinking; // Fallback if generation fails
       } else {
         // Use regular converter
-        const prompt = converterPrompt || PromptService.getPrompt('converter', 'writer');
+        const prompt = converterPrompt || PromptService.getPrompt('converter', 'writer', promptSet);
 
         if (regularModeConfig?.provider === 'gemini') {
           const result = await GeminiService.generateGenericJSON(
