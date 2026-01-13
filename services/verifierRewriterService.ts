@@ -21,6 +21,7 @@ interface RewriteFieldParams {
     field: RewritableField;
     config: RewriterConfig;
     signal?: AbortSignal;
+    promptSet?: string;  // Optional prompt set override for auto-routing
 }
 
 interface RewriteMessageParams {
@@ -28,6 +29,7 @@ interface RewriteMessageParams {
     messageIndex: number;
     config: RewriterConfig;
     signal?: AbortSignal;
+    promptSet?: string;  // Optional prompt set override for auto-routing
 }
 
 /**
@@ -145,12 +147,12 @@ export async function callRewriterAI(
  * Rewrites a specific field of a VerifierItem using AI
  */
 export async function rewriteField(params: RewriteFieldParams): Promise<string> {
-    const { item, field, config, signal } = params;
+    const { item, field, config, signal, promptSet } = params;
 
-    // Load prompt from PromptService
+    // Load prompt from PromptService (uses promptSet if provided for auto-routing consistency)
     // "query" -> "query_rewrite", "reasoning" -> "reasoning_rewrite", etc.
     const promptName = `${field}_rewrite`;
-    const systemPrompt = PromptService.getPrompt('verifier', promptName);
+    const systemPrompt = PromptService.getPrompt('verifier', promptName, promptSet);
 
     const userPrompt = buildItemContext(item, field);
 
@@ -162,13 +164,13 @@ export async function rewriteField(params: RewriteFieldParams): Promise<string> 
  * Rewrites a specific message in a multi-turn conversation
  */
 export async function rewriteMessage(params: RewriteMessageParams): Promise<string> {
-    const { item, messageIndex, config, signal } = params;
+    const { item, messageIndex, config, signal, promptSet } = params;
 
     if (!item.messages || messageIndex >= item.messages.length) {
         throw new Error('Invalid message index or no messages in item');
     }
 
-    const systemPrompt = PromptService.getPrompt('verifier', 'message_rewrite');
+    const systemPrompt = PromptService.getPrompt('verifier', 'message_rewrite', promptSet);
     const userPrompt = buildMessageContext(item, messageIndex);
 
     const result = await callRewriterAI(systemPrompt, userPrompt, config, signal);
