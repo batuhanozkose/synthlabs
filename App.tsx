@@ -643,6 +643,20 @@ export default function App() {
         }
     };
 
+    const handleExternalProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newProvider = e.target.value as ExternalProvider;
+        setExternalProvider(newProvider);
+
+        // Auto-load API Key and Base URL from saved settings
+        const savedKey = SettingsService.getApiKey(newProvider);
+        setExternalApiKey(savedKey || '');
+
+        if (newProvider === 'other') {
+            const savedBaseUrl = SettingsService.getCustomBaseUrl();
+            setCustomBaseUrl(savedBaseUrl || '');
+        }
+    };
+
     const generateRandomTopic = async () => {
         setIsGeneratingTopic(true);
         try {
@@ -2326,6 +2340,22 @@ export default function App() {
                                                 ))}
                                             </select>
                                         </div>
+                                        {/* MCQ Column Selector */}
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1">
+                                                <List className="w-3 h-3" /> MCQ Options Column (optional)
+                                            </label>
+                                            <select
+                                                value={hfConfig.mcqColumn || ''}
+                                                onChange={(e) => setHfConfig(prev => ({ ...prev, mcqColumn: e.target.value || undefined }))}
+                                                className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:border-amber-500 outline-none"
+                                            >
+                                                <option value="">None</option>
+                                                {availableColumns.map(col => (
+                                                    <option key={col} value={col}>{col}</option>
+                                                ))}
+                                            </select>
+                                        </div>
                                     </div>
                                     <div className="flex gap-2">
                                         <div className="space-y-1 flex-1"><label className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1"><MessageSquare className="w-3 h-3" /> Turn Index</label><input type="number" min="0" value={hfConfig.messageTurnIndex || 0} onChange={e => setHfConfig({ ...hfConfig, messageTurnIndex: Math.max(0, parseInt(e.target.value) || 0) })} className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:border-amber-500 outline-none" placeholder="0" /></div>
@@ -2445,6 +2475,22 @@ export default function App() {
                                                         placeholder="Select output column(s)"
                                                     />
                                                 </div>
+                                            </div>
+                                            {/* MCQ Column Selector for Manual Data */}
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1">
+                                                    <List className="w-3 h-3" /> MCQ Options Column (optional)
+                                                </label>
+                                                <select
+                                                    value={hfConfig.mcqColumn || ''}
+                                                    onChange={(e) => setHfConfig(prev => ({ ...prev, mcqColumn: e.target.value || undefined }))}
+                                                    className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:border-amber-500 outline-none"
+                                                >
+                                                    <option value="">None</option>
+                                                    {availableColumns.map(col => (
+                                                        <option key={col} value={col}>{col}</option>
+                                                    ))}
+                                                </select>
                                             </div>
                                             {/* MCQ Column Selector for Manual Data */}
                                             <div className="space-y-1">
